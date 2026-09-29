@@ -1,0 +1,79 @@
+version: 1
+experiment_name: magiclens-lasco-distill-BGE-VL-sp-w3000-ce0.03
+seed: 42
+
+training_mode: distillation
+
+# Student = ZERO-SHOT MagicLens, deliberately NOT the contrastive checkpoint.
+# The VISTA recipe starts SP from the contrastive checkpoint because contrastive
+# fine-tuning helped VISTA (+1.7 FIQ / +5.4 CIRR). For MagicLens it did not: over
+# 5 epochs no checkpoint beat zero-shot on Fashion-IQ (best 25.69 vs 25.90) and
+# CIRR peaked at +0.16 then declined to -0.63. Starting from the stronger
+# zero-shot weights removes a confound rather than adding one.
+# Baseline SP must beat: FIQ avg R@10 25.90 / CIRR summary 64.11.
+model:
+  type: magiclens
+  model_size: base
+  model_name_or_path: magiclens-base
+  checkpoint_path: models/magiclens/magic_lens_clip_base.pt
+
+# batch_size = N pairs per batch (the SP Gram is N x N).
+training:
+  epochs: 10
+  batch_size: 128
+  gradient_accumulation_steps: 4
+  learning_rate: 1.0e-6
+  weight_decay: 1.0e-2
+  warmup_ratio: 0.05
+  max_grad_norm: 1.0
+  precision: bf16
+  num_workers: 4
+  save_every_n_epochs: 1
+  eval_every_n_epochs: 1
+  log_every_n_steps: 50
+
+freeze:
+  strategy: magiclens_head_only
+  clip_train_top_n_text_layers: 0
+
+# LaSCo ONLY (unsupervised). RANDOM batching (floor, off-diag ~0.09) — the
+# setting that won the VISTA batch-composition ablation.
+# The SP loss is Gram-based, so the 4096-d teacher cache needs no projection
+# despite MagicLens' 512-d embedding.
+data:
+  lasco_sp_distill:
+    subset_path: data/lasco/distill_subset.json
+    teacher_cand_emb_path: data/lasco/bge_vl_cand_emb.pt
+    images_dir: data/lasco/images
+    cluster_labels_path: null
+
+distillation:
+  loss: sp
+  teacher: bge_vl_mllm_s1
+  # Carried over from the best VISTA run and checked against MagicLens at this
+  # batch size: SP=0.0015, CE=3.31, so 3000*SP = 4.49 ~= 1.4x CE -- the same
+  # order of magnitude the knob targets. (At small batches the ratio looks wildly
+  # off; it is batch-size dependent, so only judge it at the real N.)
+  sp_weight: 3000.0
+  # Weakened from 1.0. In the lambda=1.0 run, CE fell 2.75 -> 1.65 over 10 epochs while
+  # SP barely moved (0.0007 -> 0.0005), and Fashion-IQ collapsed 25.88 -> 23.4 over exactly
+  # that window. CE-on-LaSCo alone was independently shown to degrade this model. So the
+  # anchor is eroding the epoch-1 SP gain. Weakened, NOT removed: SP only constrains
+  # candidate-candidate geometry and never sees queries, so CE is the only term aligning a
+  # query with its own target. lambda=0 is a different and riskier experiment.
+  lambda_contrastive: 0.03
+  contrastive_temperature: 0.02
+  fn_threshold: 0.8
+
+evaluation:
+  datasets: [fashioniq, cirr]
+  batch_size: 128
+  num_workers: 4
+  query_embedding_mode: vista_mm   # historical name: native multimodal encoding
+  fusion_type: sum
+  fashioniq_eval_protocol: val_split
+  k_values: [1, 5, 10, 15, 50]
+
+outputs:
+  root_dir: results/magiclens
+  run_name: distill_magiclens_bge_vl_sp_w3000_ce0.03

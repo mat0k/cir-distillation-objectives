@@ -1,0 +1,56 @@
+# Pure KL. Scores z-scored per query: raw cosines at T=1 give a uniform target.
+# Paper Table: unsupervised distillation by knowledge family (BGE-VL-MLLM-S1 teacher, val split).
+version: 1
+experiment_name: vista-lasco-distill-BGE-VL-kl
+seed: 42
+training_mode: distillation
+model:
+  model_name_or_path: BAAI/bge-base-en-v1.5
+  checkpoint_path: results/training/vista_lasco_finetune_contrastive_v2/checkpoints/vista_epoch01.pth
+  from_pretrained: null
+training:
+  epochs: 5
+  batch_size: 4
+  gradient_accumulation_steps: 8
+  learning_rate: 1.0e-06
+  weight_decay: 0.01
+  warmup_ratio: 0.05
+  max_grad_norm: 1.0
+  precision: bf16
+  num_workers: 4
+  save_every_n_epochs: 1
+  eval_every_n_epochs: 1
+  log_every_n_steps: 200
+freeze:
+  strategy: top_layers_only
+  bge_freeze_bottom_n_layers: 9
+data:
+  lasco_distill:
+    subset_path: data/lasco/distill_subset.json
+    scores_path: data/lasco/teacher_scores_bge_vl.json
+    images_dir: data/lasco/images
+  num_negatives: 15
+distillation:
+  loss: kl_div
+  teacher: bge_vl_mllm_s1
+  soft_labels_path: data/lasco/teacher_scores_bge_vl.json
+  normalize_scores: true
+  kl_temperature: 1.0
+evaluation:
+  datasets:
+  - fashioniq
+  - cirr
+  batch_size: 64
+  num_workers: 4
+  query_embedding_mode: vista_mm
+  fusion_type: sum
+  fashioniq_eval_protocol: val_split
+  k_values:
+  - 1
+  - 5
+  - 10
+  - 15
+  - 50
+outputs:
+  root_dir: results/bge_vl
+  run_name: distill_bge_vl_kl

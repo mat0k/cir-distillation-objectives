@@ -1,0 +1,55 @@
+# Pure MarginMSE, raw cosine scores (as the VISTA MarginMSE run).
+# Paper Table: unsupervised distillation by knowledge family (BGE-VL-MLLM-S1 teacher, val split).
+version: 1
+experiment_name: magiclens-lasco-distill-BGE-VL-mse
+seed: 42
+training_mode: distillation
+model:
+  type: magiclens
+  model_size: base
+  model_name_or_path: magiclens-base
+  checkpoint_path: models/magiclens/magic_lens_clip_base.pt
+training:
+  epochs: 5
+  batch_size: 4
+  gradient_accumulation_steps: 8
+  learning_rate: 1.0e-06
+  weight_decay: 0.01
+  warmup_ratio: 0.05
+  max_grad_norm: 1.0
+  precision: bf16
+  num_workers: 4
+  save_every_n_epochs: 1
+  eval_every_n_epochs: 1
+  log_every_n_steps: 200
+freeze:
+  strategy: magiclens_head_only
+  clip_train_top_n_text_layers: 0
+data:
+  lasco_distill:
+    subset_path: data/lasco/distill_subset.json
+    scores_path: data/lasco/teacher_scores_bge_vl.json
+    images_dir: data/lasco/images
+  num_negatives: 15
+distillation:
+  loss: margin_mse
+  teacher: bge_vl_mllm_s1
+  soft_labels_path: data/lasco/teacher_scores_bge_vl.json
+evaluation:
+  datasets:
+  - fashioniq
+  - cirr
+  batch_size: 64
+  num_workers: 4
+  query_embedding_mode: vista_mm
+  fusion_type: sum
+  fashioniq_eval_protocol: val_split
+  k_values:
+  - 1
+  - 5
+  - 10
+  - 15
+  - 50
+outputs:
+  root_dir: results/magiclens
+  run_name: distill_magiclens_bge_vl_mse

@@ -1,0 +1,26 @@
+version: 1
+experiment_name: lasco-distill-precompute-lamra-7b
+
+data:
+  lasco_annotations: data/lasco/lasco_train.json
+  images_dir: data/lasco/images
+  subset_size: 40000
+  seed: 42
+  num_negatives: 15
+  # reuse existing subset so scores are on the same 40K triplets as Qwen teacher
+  subset_output: data/lasco/distill_subset.json
+  scores_output: data/lasco/teacher_scores_lamra.json
+  checkpoint_every: 500
+
+reranker:
+  model_name_or_path: models/LamRA-Rank-Qwen2.5VL-7b
+  trust_remote_code: true
+  local_files_only: true
+  revision: main
+  device: auto
+  dtype: bfloat16
+  image_io:
+    rgb_only: true
+    resize_short_edge: 448
+    center_crop: 448
+    interpolation: bicubic

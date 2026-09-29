@@ -1,0 +1,24 @@
+version: 1
+experiment_name: lasco-distill-precompute-lamra-ret-7b
+
+# LaSCo ONLY (unsupervised). Reuses the exact 40K subset + same negatives as the
+# Qwen / LamRA-Rank teachers so the only variable is the teacher.
+data:
+  lasco_annotations: data/lasco/lasco_train.json   # fallback if subset missing
+  images_dir: data/lasco/images
+  subset_size: 40000
+  seed: 42
+  num_negatives: 15
+  subset_path: data/lasco/distill_subset.json       # reuse existing 40K subset
+  scores_output: data/lasco/teacher_scores_lamra_ret.json
+  query_emb_cache: data/lasco/lamra_ret_query_emb.pt
+  cand_emb_cache: data/lasco/lamra_ret_cand_emb.pt
+
+retriever:
+  model_path: models/LamRA-Ret-Qwen2.5VL-7b
+  dtype: bfloat16
+  attn: sdpa
+  min_pixels: 200704        # 256 * 28 * 28
+  max_pixels: 1003520       # 1280 * 28 * 28  (matches the zero-shot eval)
+  batch_size: 8
+  instruction: "I'm looking for a similar everyday image with the described changes."

@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+data/*
+!data/README.md
+models/
+results/training/
+checkpoints/
+*.pth
+*.pt
+*.out
+*.err
+.DS_Store

@@ -1,0 +1,61 @@
+version: 1
+experiment_name: vista-lasco-distill-lamra-ret-ce-mse
+seed: 42
+
+training_mode: distillation
+
+# Student = best LaSCo-finetuned VISTA (contrastive v2, epoch 1) — NOT zero-shot.
+model:
+  model_name_or_path: BAAI/bge-base-en-v1.5
+  checkpoint_path: results/training/vista_lasco_finetune_contrastive_v2/checkpoints/vista_epoch01.pth
+  from_pretrained: null
+
+# Identical optimisation to contrastive v2 / prior distillation runs, so the only
+# variable vs the LamRA-Rank / Qwen distillation is the TEACHER (LamRA-Ret).
+training:
+  epochs: 5
+  batch_size: 4
+  gradient_accumulation_steps: 8
+  learning_rate: 1.0e-6
+  weight_decay: 1.0e-2
+  warmup_ratio: 0.05
+  max_grad_norm: 1.0
+  precision: bf16
+  num_workers: 4
+  save_every_n_epochs: 1
+  eval_every_n_epochs: 1
+  log_every_n_steps: 200
+
+freeze:
+  strategy: top_layers_only
+  bge_freeze_bottom_n_layers: 9
+
+# LaSCo ONLY (unsupervised). We distill + train on LaSCo, test on FashionIQ/CIRR.
+data:
+  lasco_distill:
+    subset_path: data/lasco/distill_subset.json
+    scores_path: data/lasco/teacher_scores_lamra_ret.json
+    images_dir: data/lasco/images
+  num_negatives: 15
+
+distillation:
+  loss: combined                 # CE (contrastive) + MarginMSE (distillation)
+  teacher: lamra_ret_7b
+  soft_labels_path: data/lasco/teacher_scores_lamra_ret.json
+  lambda_distill: 0.5            # 50% MarginMSE + 50% CE
+  contrastive_temperature: 0.02
+  distill_component: margin_mse
+
+evaluation:
+  datasets: [fashioniq, cirr]
+  batch_size: 64
+  num_workers: 4
+  query_embedding_mode: vista_mm
+  fusion_type: sum
+  fashioniq_eval_protocol: val_split
+  k_values: [1, 5, 10, 15, 50]
+
+# Keep all LamRA-Ret outputs together under results/lamra_ret/.
+outputs:
+  root_dir: results/lamra_ret
+  run_name: distill_lamra_ret_ce_mse

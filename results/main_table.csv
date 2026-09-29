@@ -1,0 +1,19 @@
+,,BGE-VL-MLLM-S1,,,,
+,,VISTA,,,Magic Lens,
+,,,,relation based,,
+dataset,metric,zero_shot,contrastive (baseline),sp_random (ep 7),zero shot,SP distillation (ep 1)
+Fash_IQ,dress R@10,18.75,20.63,21.54,21.81,22.19
+Fash_IQ,shirt R@10,26.68,28.69,30.39,26.48,29.31
+Fash_IQ,toptee R@10,26.67,27.7,30.42,29.4,31.06
+Fash_IQ,avg R@5,18.37,19.55,21.16,19.35,20.4
+Fash_IQ,avg R@10,24.03,25.71,27.45,25.9,27.52
+Fash_IQ,avg R@50,41.17,44.07,46.54,48.4,49.57
+CIRR,global R@1,20.145,24.19,26.28,29.52,31.88
+CIRR,global R@5,49.181,54.33,56.53,59.61,62.27
+CIRR,global R@10,63.205,68.02,69.61,72.63,73.71
+CIRR,subset@1,46.892,53.08,55.49,67.34,68.26
+CIRR,subset@2,70.675,75.3,77.44,84.12,84.48
+CIRR,subset@3,85.277,87.34,88.77,92.79,93.39
+CIRCO,map_at5,15.65,17.67,20.03,22.53,26.88
+CIRCO,map_at10,16.62,18.43,21.07,23.34,27.83
+CIRCO,map_at50,19.24,21.25,23.88,26.14,31.03    

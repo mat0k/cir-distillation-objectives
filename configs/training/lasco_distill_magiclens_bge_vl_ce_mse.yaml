@@ -1,0 +1,61 @@
+version: 1
+experiment_name: magiclens-lasco-distill-BGE-VL-ce-mse
+seed: 42
+
+training_mode: distillation
+
+# Student = best LaSCo-finetuned VISTA (contrastive v2, epoch 1) — NOT zero-shot.
+model:
+  type: magiclens
+  model_size: base
+  model_name_or_path: magiclens-base
+  # Zero-shot weights: contrastive fine-tuning never beat zero-shot for MagicLens.
+  checkpoint_path: models/magiclens/magic_lens_clip_base.pt
+# Identical optimisation to contrastive v2 / prior distillation runs, so the only
+# variable vs the LamRA-Rank / Qwen distillation is the TEACHER (LamRA-Ret).
+training:
+  epochs: 5
+  batch_size: 4
+  gradient_accumulation_steps: 8
+  learning_rate: 1.0e-6
+  weight_decay: 1.0e-2
+  warmup_ratio: 0.05
+  max_grad_norm: 1.0
+  precision: bf16
+  num_workers: 4
+  save_every_n_epochs: 1
+  eval_every_n_epochs: 1
+  log_every_n_steps: 200
+
+freeze:
+  strategy: magiclens_head_only
+  clip_train_top_n_text_layers: 0
+# LaSCo ONLY (unsupervised). We distill + train on LaSCo, test on FashionIQ/CIRR.
+data:
+  lasco_distill:
+    subset_path: data/lasco/distill_subset.json
+    scores_path: data/lasco/teacher_scores_bge_vl.json
+    images_dir: data/lasco/images
+  num_negatives: 15
+
+distillation:
+  loss: combined                 # CE (contrastive) + MarginMSE (distillation)
+  teacher: bge_vl_mllm_s1
+  soft_labels_path: data/lasco/teacher_scores_bge_vl.json
+  lambda_distill: 0.5            # 50% MarginMSE + 50% CE
+  contrastive_temperature: 0.02
+  distill_component: margin_mse
+
+evaluation:
+  datasets: [fashioniq, cirr]
+  batch_size: 64
+  num_workers: 4
+  query_embedding_mode: vista_mm
+  fusion_type: sum
+  fashioniq_eval_protocol: val_split
+  k_values: [1, 5, 10, 15, 50]
+
+# All BGE-VL outputs under results/bge_vl/.
+outputs:
+  root_dir: results/magiclens
+  run_name: distill_magiclens_bge_vl_ce_mse

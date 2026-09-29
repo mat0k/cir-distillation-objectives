@@ -1,0 +1,58 @@
+# RKD at group size 128, matching SP / CRD-N / feature regression.
+# Paper Table: unsupervised distillation by knowledge family (BGE-VL-MLLM-S1 teacher, val split).
+version: 1
+experiment_name: vista-lasco-distill-BGE-VL-rkd-bs128
+seed: 42
+training_mode: distillation
+model:
+  model_name_or_path: BAAI/bge-base-en-v1.5
+  checkpoint_path: results/training/vista_lasco_finetune_contrastive_v2/checkpoints/vista_epoch01.pth
+  from_pretrained: null
+training:
+  epochs: 10
+  batch_size: 128
+  gradient_accumulation_steps: 4
+  learning_rate: 1.0e-06
+  weight_decay: 0.01
+  warmup_ratio: 0.05
+  max_grad_norm: 1.0
+  precision: bf16
+  num_workers: 4
+  save_every_n_epochs: 1
+  eval_every_n_epochs: 1
+  log_every_n_steps: 50
+freeze:
+  strategy: top_layers_only
+  bge_freeze_bottom_n_layers: 9
+data:
+  lasco_sp_distill:
+    subset_path: data/lasco/distill_subset.json
+    teacher_cand_emb_path: data/lasco/bge_vl_cand_emb.pt
+    images_dir: data/lasco/images
+    cluster_labels_path: null
+distillation:
+  loss: rkd
+  teacher: bge_vl_mllm_s1
+  rkd_dist_weight: 500.0
+  rkd_angle_weight: 500.0
+  lambda_contrastive: 1.0
+  contrastive_temperature: 0.02
+  fn_threshold: 0.8
+evaluation:
+  datasets:
+  - fashioniq
+  - cirr
+  batch_size: 64
+  num_workers: 4
+  query_embedding_mode: vista_mm
+  fusion_type: sum
+  fashioniq_eval_protocol: val_split
+  k_values:
+  - 1
+  - 5
+  - 10
+  - 15
+  - 50
+outputs:
+  root_dir: results/bge_vl
+  run_name: distill_bge_vl_rkd_bs128

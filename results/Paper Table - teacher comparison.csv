@@ -1,0 +1,12 @@
+"# Teacher comparison. Student: VISTA (196M) for every row. Split: Fashion-IQ val, CIRR val."
+# clean_teacher = teacher never trained on CIRR or Fashion-IQ data.
+"# teacher_zero_shot = the retriever teacher used alone over the full gallery; n/a for rerankers, which cannot be run over the full gallery."
+"# student_* columns = the distilled VISTA student. Epoch rule: epoch maximising mean(FIQ avg R@10, CIRR summary)."
+teacher,teacher_architecture,clean_teacher,teacher_zero_shot_fiq_avg_r10,objective_family,objective,student_epoch,student_fiq_avg_r10,student_fiq_avg_r50,student_cirr_r1,student_cirr_r5,student_cirr_rsub1,student_cirr_summary,run_dir,note
+none,--,--,,reference,contrastive fine-tuning,1,25.71,44.08,23.82,54.87,53.07,53.97,results/training/vista_lasco_finetune_contrastive_v2,shared reference for every distillation row
+Qwen3-VL-Reranker-2B,cross-encoder reranker,no,n/a,response,"CE+MSE (lambda=0.5, per-query score standardisation)",1,24.61,42.36,22.96,53.79,49.7,51.75,results/training/vista_lasco_distill_ce_mse_lam05_norm,teacher-alone n/a: reranker cannot be run over the full gallery
+LamRA-Rank-7B,cross-encoder reranker,no,n/a,response,CE+MSE (lambda=0.5),1,25.52,44.02,23.54,55.03,52.76,53.9,results/training/vista_lasco_distill_lamra_ce_mse,trained on M-BEIR (contains CIRR and Fashion-IQ)
+LamRA-Ret-7B,dual-encoder retriever,no,53.07,response,CE+MSE (lambda=0.5),2,25.43,43.71,23.15,54.82,51.97,53.4,results/lamra_ret/distill_lamra_ret_ce_mse,trained on M-BEIR (contains CIRR and Fashion-IQ)
+LamRA-Ret-7B,dual-encoder retriever,no,53.07,relation,SP,9,27.42,46.24,26.64,58.1,57.24,57.67,results/lamra_ret/distill_lamra_ret_sp_random_long_w3000,
+BGE-VL-MLLM-S1,dual-encoder retriever,yes,35.82,response,CE+MSE (lambda=0.5),1,25.48,43.78,23.27,54.87,52.67,53.77,results/bge_vl/distill_bge_vl_ce_mse,"trained only on MegaPairs (synthetic, no CIR benchmark data)"
+BGE-VL-MLLM-S1,dual-encoder retriever,yes,35.82,relation,SP,7,27.46,46.54,25.42,57.31,55.8,56.55,results/bge_vl/distill_bge_vl_sp_w3000,same checkpoint as the main table

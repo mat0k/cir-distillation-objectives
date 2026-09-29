@@ -1,0 +1,67 @@
+version: 1
+experiment_name: magiclens-lasco-distill-BGE-VL-crd
+seed: 42
+
+training_mode: distillation
+
+# Student = best LaSCo-finetuned VISTA (contrastive v2, epoch 1) — NOT zero-shot.
+model:
+  type: magiclens
+  model_size: base
+  model_name_or_path: magiclens-base
+  # Zero-shot weights: contrastive fine-tuning never beat zero-shot for MagicLens.
+  checkpoint_path: models/magiclens/magic_lens_clip_base.pt
+# batch_size = N pairs per cluster-batch (the SP Gram is N x N).
+training:
+  epochs: 10
+  batch_size: 128
+  gradient_accumulation_steps: 4
+  learning_rate: 1.0e-6
+  weight_decay: 1.0e-2
+  warmup_ratio: 0.05
+  max_grad_norm: 1.0
+  precision: bf16
+  num_workers: 4
+  save_every_n_epochs: 1
+  eval_every_n_epochs: 1
+  log_every_n_steps: 50
+
+freeze:
+  strategy: magiclens_head_only
+  clip_train_top_n_text_layers: 0
+# LaSCo ONLY. RANDOM batching (floor, off-diag ~0.09).
+data:
+  lasco_sp_distill:
+    subset_path: data/lasco/distill_subset.json
+    teacher_cand_emb_path: data/lasco/bge_vl_cand_emb.pt
+    images_dir: data/lasco/images
+    cluster_labels_path: null
+
+# SP (candidate-candidate similarity-preserving) + CE anchor on TRUE positives.
+distillation:
+  loss: crd
+  teacher: bge_vl_mllm_s1
+  crd_weight: 1.0
+  crd_temperature: 0.07
+  projection_dim: 128
+  student_dim: 512            # MagicLens is 512-d (VISTA was 768-d)
+  teacher_dim: 4096           # BGE-VL is 4096-d (LamRA was 3584-d)
+  projector_lr: 1.0e-3        # fresh head needs its own high lr
+  student_projector: identity # native embedding must align (no absorption escape)
+  teacher_projector: linear
+  lambda_contrastive: 0.1     # swept optimum for MagicLens (1.0 suppresses the gain)
+  contrastive_temperature: 0.02
+  fn_threshold: 0.8           # false-negative meter: teacher cos(neg, true target) > this
+
+evaluation:
+  datasets: [fashioniq, cirr]
+  batch_size: 128
+  num_workers: 4
+  query_embedding_mode: vista_mm
+  fusion_type: sum
+  fashioniq_eval_protocol: val_split
+  k_values: [1, 5, 10, 15, 50]
+
+outputs:
+  root_dir: results/magiclens
+  run_name: distill_magiclens_bge_vl_crd

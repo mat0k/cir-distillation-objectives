@@ -1,0 +1,58 @@
+version: 1
+experiment_name: magiclens-lasco-contrastive
+seed: 42
+
+training_mode: contrastive
+
+# Student = converted zero-shot MagicLens (base). Produces the contrastive
+# baseline that SP distillation must beat, mirroring VISTA's contrastive_v2.
+# Weights come from scripts/convert_magiclens_weights.py (parity-verified).
+model:
+  type: magiclens
+  model_size: base
+  model_name_or_path: magiclens-base
+  checkpoint_path: models/magiclens/magic_lens_clip_base.pt
+
+# Mirrors VISTA's contrastive_v2 recipe (configs/training/lasco_finetune_v2.yaml)
+# exactly -- same data, epochs, LR, effective batch (32x4=128), temperature -- so the
+# MagicLens baseline is comparable to the VISTA one it parallels.
+training:
+  epochs: 5
+  batch_size: 32                    # effective = batch_size * gradient_accumulation_steps
+  gradient_accumulation_steps: 4    # effective batch size = 128
+  learning_rate: 1.0e-6             # low LR: prevents the catastrophic forgetting seen in v1
+  weight_decay: 1.0e-2
+  warmup_ratio: 0.05
+  max_grad_norm: 1.0
+  temperature: 0.02
+  precision: bf16
+  num_workers: 8
+  save_every_n_epochs: 1
+  eval_every_n_epochs: 1
+  log_every_n_steps: 200
+
+# Fusion head only: multimodal_encoder + pooler = 16.8M / 166.4M (10.1%),
+# the analogue of VISTA's top_layers_only (~11%), which avoided the
+# catastrophic forgetting seen under full unfreeze.
+freeze:
+  strategy: magiclens_head_only
+  clip_train_top_n_text_layers: 0
+
+# Full LaSCo train split (359,268 triplets), same as VISTA's contrastive_v2.
+data:
+  lasco:
+    annotations: data/lasco/lasco_train.json
+    images_dir: data/lasco/images
+
+evaluation:
+  datasets: [fashioniq, cirr]
+  batch_size: 64
+  num_workers: 4
+  query_embedding_mode: vista_mm   # historical name: native multimodal encoding
+  fusion_type: sum
+  fashioniq_eval_protocol: val_split
+  k_values: [1, 5, 10, 15, 50]
+
+outputs:
+  root_dir: results/magiclens
+  run_name: magiclens_lasco_contrastive

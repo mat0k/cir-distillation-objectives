@@ -1,0 +1,26 @@
+version: 1
+experiment_name: lasco-distill-precompute-qwen3vl-2b
+
+data:
+  lasco_annotations: data/lasco/lasco_train.json
+  images_dir: data/lasco/images
+  subset_size: 40000
+  seed: 42
+  num_negatives: 15
+  # outputs
+  subset_output: data/lasco/distill_subset.json
+  scores_output: data/lasco/teacher_scores_qwen.json
+  checkpoint_every: 500        # flush to disk every N triplets
+
+reranker:
+  model_name_or_path: models/Qwen3-VL-Reranker-2B
+  trust_remote_code: true
+  local_files_only: true
+  revision: main
+  device: auto
+  dtype: bfloat16
+  image_io:
+    rgb_only: true
+    resize_short_edge: 448
+    center_crop: 448
+    interpolation: bicubic

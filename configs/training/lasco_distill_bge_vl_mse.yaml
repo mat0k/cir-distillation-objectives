@@ -1,0 +1,57 @@
+version: 1
+experiment_name: vista-lasco-distill-BGE-VL-mse
+seed: 42
+
+training_mode: distillation
+
+# Student = best LaSCo-finetuned VISTA (contrastive v2, epoch 1) — NOT zero-shot.
+model:
+  model_name_or_path: BAAI/bge-base-en-v1.5
+  checkpoint_path: results/training/vista_lasco_finetune_contrastive_v2/checkpoints/vista_epoch01.pth
+  from_pretrained: null
+
+training:
+  epochs: 5
+  batch_size: 4
+  gradient_accumulation_steps: 8
+  learning_rate: 1.0e-6
+  weight_decay: 1.0e-2
+  warmup_ratio: 0.05
+  max_grad_norm: 1.0
+  precision: bf16
+  num_workers: 4
+  save_every_n_epochs: 1
+  eval_every_n_epochs: 1
+  log_every_n_steps: 200
+
+freeze:
+  strategy: top_layers_only
+  bge_freeze_bottom_n_layers: 9
+
+# LaSCo ONLY (unsupervised). RANDOM negatives (retriever teacher gives a clean
+# positive margin; student-mined hard negatives poison a retriever teacher).
+data:
+  lasco_distill:
+    subset_path: data/lasco/distill_subset.json
+    scores_path: data/lasco/teacher_scores_bge_vl.json
+    images_dir: data/lasco/images
+  num_negatives: 15
+
+distillation:
+  loss: margin_mse              # pure MarginMSE distillation (NO contrastive CE term)
+  teacher: bge_vl_mllm_s1
+  soft_labels_path: data/lasco/teacher_scores_bge_vl.json
+  # normalize_scores omitted -> False (raw cosine scores)
+
+evaluation:
+  datasets: [fashioniq, cirr]
+  batch_size: 64
+  num_workers: 4
+  query_embedding_mode: vista_mm
+  fusion_type: sum
+  fashioniq_eval_protocol: val_split
+  k_values: [1, 5, 10, 15, 50]
+
+outputs:
+  root_dir: results/bge_vl
+  run_name: distill_bge_vl_mse
